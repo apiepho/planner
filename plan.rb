@@ -5,18 +5,16 @@ require "ostruct"
 require "fileutils"
 
 # TODO:
-# parse input file
-# skip input comments
-# pass input comments thru to out file
-# convert month to year/month
-# finish all entries (in the in_file?)
-# how to add in inflation?
+# add interest, find reference, update that entries amount
+# add payment, find reference, update that entries amount
+# support absolute month/year
 # allow for resetting asset/debt 
+# parse input file
+#   skip input comments
+#   pass input comments thru to out file
+# build my own input file
 # 
-# future income
-# future expenses
-# inflation, single, ranges
-# account performace, single, ranges
+# TODO: future features
 # plan vs actual?
 # monte carlo
 
@@ -29,9 +27,10 @@ require "fileutils"
 #    withdrawl    : decrease to an asset balance
 #    interest     : positive/negative annual percentage rate for asset or debit
 #    payment      : decreast to a debt, assume includes interest and principle
-#    income       : increase to total                                               TODO: should this be deposit?
-#    expense      : decrease to total                                               TODO: should this be withdrawl?
+#    income       : increase to total, use when interest does not apply
+#    expense      : decrease to total, use when interest deos not apply
 #    inflation    : post total reduction, can be multiple ranges
+# "reference"   : id of entry this applies to, used with deposit|withdrawl|interest|payment
 # "description" : description of entry, this field is not parsed
 # "comment"     : general comment about entry, this field is not parsed
 # "start_month" : start month for entry, 1-12
@@ -57,7 +56,7 @@ def build_default_entries
   entry["start_year"]  = 0
   entry["end_month"]   = 24
   entry["end_year"]    = 0
-  entry["amount"]      = 0.03
+  entry["amount"]      = 0.01
   @entries << entry
   entry = {}
   entry["id"]          = "inflation2"
@@ -68,12 +67,12 @@ def build_default_entries
   entry["start_year"]  = 0
   entry["end_month"]   = -1
   entry["end_year"]    = 0
-  entry["amount"]      = 0.10
+  entry["amount"]      = 0.04
   @entries << entry
 
   # assets
   entry = {}
-  entry["id"]          = "acount1"
+  entry["id"]          = "account1"
   entry["type"]        = "asset"
   entry["description"] = "account 1"
   entry["comment"]     = "some account that is an asset"
@@ -84,7 +83,7 @@ def build_default_entries
   entry["amount"]      = 100000
   @entries << entry
   entry = {}
-  entry["id"]          = "acount2"
+  entry["id"]          = "account2"
   entry["type"]        = "asset"
   entry["description"] = "account 2"
   entry["comment"]     = "another account that is an asset"
@@ -94,8 +93,38 @@ def build_default_entries
   entry["end_year"]    = 0
   entry["amount"]      = 300000
   @entries << entry
+
+  # deposits
   entry = {}
-  entry["id"]          = "acount3"
+  entry["id"]          = "deposit1"
+  entry["type"]        = "deposit"
+  entry["reference"]   = "account1"
+  entry["description"] = "recuring deposit to account 1"
+  entry["comment"]     = "dedicated portion of income 1 deposited to account 1"
+  entry["start_month"] = 0
+  entry["start_year"]  = 0
+  entry["end_month"]   = 120
+  entry["end_year"]    = 0
+  entry["amount"]      = 100
+  @entries << entry
+
+  # withdrawls
+  entry = {}
+  entry["id"]          = "withdrawl1"
+  entry["type"]        = "withdrawl"
+  entry["reference"]   = "account2"
+  entry["description"] = "recuring withdrawl to account 2"
+  entry["comment"]     = "ammount taken from account 2 every month, ongoing"
+  entry["start_month"] = 0
+  entry["start_year"]  = 0
+  entry["end_month"]   = -1
+  entry["end_year"]    = 0
+  entry["amount"]      = -50
+  @entries << entry
+
+  # debts
+  entry = {}
+  entry["id"]          = "account3"
   entry["type"]        = "debt"
   entry["description"] = "some account that is a debt"
   entry["comment"]     = "debt"
@@ -167,17 +196,18 @@ def build_default_entries
 end
 
 #-----------------------------------------------------------------------
-def save_entries options
-  if File.exists?(options.out_file)
-    puts "File \"%s\" exists, continue? (ctrl-C to exit):" % options.out_file
+def save_entries(out_file, force)
+  if not force and File.exists?(out_file)
+    puts "File \"%s\" exists, continue? (ctrl-C to exit):" % out_file
     gets
   end
-  file = File.open(options.out_file, "w")
+  file = File.open(out_file, "w")
   if (file)
     @entries.each do |entry|
       file.puts ""
       file.puts "%-20s: %s" % [ "id",          entry["id"]          ]
       file.puts "%-20s: %s" % [ "type",        entry["type"]        ]
+      file.puts "%-20s: %s" % [ "reference",   entry["reference"]   ]
       file.puts "%-20s: %s" % [ "description", entry["description"] ]
       file.puts "%-20s: %s" % [ "comment",     entry["comment"]     ]
       file.puts "%-20s: %d" % [ "start_month", entry["start_month"] ]
@@ -197,8 +227,25 @@ Options:
   -i | --in-file         # Input portfolio plan file (use -o without -i for sample)
   -o | --out-file        # Output modified portfolio plan file
   -m | --months          # Total months to show (default 120, or 10 years)
-
 "
+end
+
+#-----------------------------------------------------------------------
+def deposit_to_reference(reference, amount)
+  @entries.each_with_index do |entry, index|
+    if entry["id"] === reference
+      @entries[index]["amount"] += amount
+    end
+  end
+end
+
+#-----------------------------------------------------------------------
+def withdrawl_from_reference(reference, amount)
+  @entries.each_with_index do |entry, index|
+    if entry["id"] === reference
+      @entries[index]["amount"] += amount
+    end
+  end
 end
 
 #-----------------------------------------------------------------------
@@ -239,7 +286,7 @@ loop do
 end
 
 build_default_entries if options.in_file.nil?
-save_entries(options) if not options.out_file.nil?
+save_entries(options.out_file, false) if not options.out_file.nil?
 
 #-----------------------------------------------------------------------
 # determine current assets and debts
@@ -274,12 +321,25 @@ while month <= options.months
     if start_month <= month and (end_month == -1 or end_month >= month)
       income    += amount if entry["type"] === "income"
       expenses  += amount if entry["type"] === "expense"
+      if entry["type"] === "deposit"
+        # update reference account for interest calculation
+        deposit_to_reference(entry["reference"], amount)
+        # update income for on going total calculation
+        income += amount
+      end
+      if entry["type"] === "withdrawl"
+        # update reference account for interest calculation
+        withdrawl_from_reference(entry["reference"], amount)
+        # update income for on going total calculation
+        income += amount
+      end
     end
   end
   totals_wo_inflation[month] = total
   total = total + income + expenses
   month = month + 1
 end
+save_entries("debug.txt", true)
 
 # assume we can adjust for inflation after totals calculated
 totals_w_inflation = []
@@ -305,7 +365,6 @@ while month <= options.months
     end
   end
   current_inflation_factor = current_inflation_factor - (current_inflation_rate/12.0)
-
   month = month + 1
 end
 
