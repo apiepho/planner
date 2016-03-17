@@ -1,0 +1,199 @@
+# sample input file
+
+# entry definition
+# "id"          : data set unique string, used for associating "interest" with an account
+# "type"        : type of entry as follows:
+#    asset        : generally a positive balance bank or investment account, current/starting balance
+#    debt         : generally a negative balance loan or credit account, current/starting balance
+#    deposit      : increase to an asset balance
+#    withdrawl    : decrease to an asset balance
+#    interest     : positive/negative annual percentage rate interest/gain for asset or debit
+#    payment      : decreast to a debt, assume includes interest and principle
+#    income       : increase to total, use when interest does not apply
+#    expense      : decrease to total, use when interest deos not apply
+#    inflation    : post total reduction, can be multiple ranges
+# "reference"   : id of entry this applies to, used with deposit|withdrawl|interest|payment
+# "description" : description of entry, this field is not parsed
+# "comment"     : general comment about entry, this field is not parsed
+# "start_month" : start month for entry, 1-12
+# "start_year"  : start year  for entry, 0 means start month is relative, 0-N
+# "end_month"   : end   month for entry, 1-12, -1 means never ends
+# "end_year"    : end   year  for entry, 0 means end month is relative, 0-N
+# "amount"      : positive or negative amount
+
+# NOTE: program assumes "id" is first key/value and "amount" is last
+
+# inflation
+id                  : inflation1
+type                : inflation
+reference           : 
+description         : projected inflation range 1
+comment             : amount field used for inflation rate, expect low for next 2 years
+start_month         : 0
+start_year          : 0
+end_month           : 24
+end_year            : 0
+amount              : 0.01
+
+id                  : inflation2
+type                : inflation
+reference           : 
+description         : projected inflation range 2
+comment             : amount field used for inflation rate, expect to rise after 2 years
+start_month         : 24
+start_year          : 0
+end_month           : -1
+end_year            : 0
+amount              : 0.04
+
+# assets
+id                  : account1
+type                : asset
+reference           : 
+description         : account 1
+comment             : some account that is an asset
+start_month         : 0
+start_year          : 0
+end_month           : 0
+end_year            : 0
+amount              : 100000.00
+
+id                  : account2
+type                : asset
+reference           : 
+description         : account 2
+comment             : another account that is an asset
+start_month         : 0
+start_year          : 0
+end_month           : 0
+end_year            : 0
+amount              : 300000.00
+
+# interest/gains
+id                  : interest1
+type                : interest
+reference           : account1
+description         : gain on account 1
+comment             : historical average
+start_month         : 0
+start_year          : 0
+end_month           : -1
+end_year            : 0
+amount              : 0.05
+
+# deposits
+id                  : deposit1
+type                : deposit
+reference           : account1
+description         : recuring deposit to account 1
+comment             : dedicated portion of income 1 deposited to account 1
+start_month         : 0
+start_year          : 0
+end_month           : 120
+end_year            : 0
+amount              : 100.00
+
+# withdrawls
+id                  : withdrawl1
+type                : withdrawl
+reference           : account2
+description         : recuring withdrawl to account 2
+comment             : ammount taken from account 2 every month, ongoing
+start_month         : 0
+start_year          : 0
+end_month           : -1
+end_year            : 0
+amount              : -50.00
+
+# debts
+id                  : account3
+type                : debt
+reference           : 
+description         : some account that is a debt
+comment             : debt
+start_month         : 0
+start_year          : 0
+end_month           : 0
+end_year            : 0
+amount              : -10000.00
+
+# interest rate on debts
+id                  : interest2
+type                : interest
+reference           : account3
+description         : rate on account 2
+comment             : credit card apr
+start_month         : 0
+start_year          : 0
+end_month           : -1
+end_year            : 0
+amount              : 0.12
+
+# payment on debts
+id                  : payment1
+type                : payment
+reference           : account3
+description         : monthly payment for account 3
+comment             : minimum payment includes principle and interest
+start_month         : 0
+start_year          : 0
+end_month           : 120
+end_year            : 0
+amount              : 100.00
+
+# income
+id                  : income1
+type                : income
+reference           : 
+description         : person1 pay
+comment             : income, next 10 years
+start_month         : 0
+start_year          : 0
+end_month           : 120
+end_year            : 0
+amount              : 1000.00
+
+id                  : income2
+type                : income
+reference           : 
+description         : person1 pay
+comment             : income, next 15 years
+start_month         : 0
+start_year          : 0
+end_month           : 180
+end_year            : 0
+amount              : 2000.00
+
+# expenses
+id                  : expense1
+type                : expense
+reference           : 
+description         : utilities
+comment             : expense, never ends
+start_month         : 0
+start_year          : 0
+end_month           : -1
+end_year            : 0
+amount              : -100.00
+
+id                  : expense2
+type                : expense
+reference           : 
+description         : credit card
+comment             : expense, average, never ends
+start_month         : 0
+start_year          : 0
+end_month           : -1
+end_year            : 0
+amount              : -1000.00
+
+id                  : expense3
+type                : expense
+reference           : 
+description         : car loan
+comment             : expense, 2 years left
+start_month         : 0
+start_year          : 0
+end_month           : 24
+end_year            : 0
+amount              : -500.00
