@@ -5,16 +5,16 @@ require "ostruct"
 require "fileutils"
 
 # TODO:
-# add interest, find reference, update that entries amount
-# add payment, find reference, update that entries amount
-# support absolute month/year
-# allow for resetting asset/debt 
 # parse input file
 #   skip input comments
 #   pass input comments thru to out file
+# build default/example file and remove from app
+# build test files for each type
 # build my own input file
+# support absolute month/year
 # 
 # TODO: future features
+# allow for resetting asset/debt 
 # plan vs actual?
 # monte carlo
 
@@ -25,7 +25,7 @@ require "fileutils"
 #    debt         : generally a negative balance loan or credit account, current/starting balance
 #    deposit      : increase to an asset balance
 #    withdrawl    : decrease to an asset balance
-#    interest     : positive/negative annual percentage rate for asset or debit
+#    interest     : positive/negative annual percentage rate interest/gain for asset or debit
 #    payment      : decreast to a debt, assume includes interest and principle
 #    income       : increase to total, use when interest does not apply
 #    expense      : decrease to total, use when interest deos not apply
@@ -94,6 +94,20 @@ def build_default_entries
   entry["amount"]      = 300000
   @entries << entry
 
+  # interest/gain
+  entry = {}
+  entry["id"]          = "interest1"
+  entry["type"]        = "interest"
+  entry["reference"]   = "account1"
+  entry["description"] = "gain on account 1"
+  entry["comment"]     = "historical average"
+  entry["start_month"] = 0
+  entry["start_year"]  = 0
+  entry["end_month"]   = -1
+  entry["end_year"]    = 0
+  entry["amount"]      = 0.05
+  @entries << entry
+
   # deposits
   entry = {}
   entry["id"]          = "deposit1"
@@ -132,9 +146,38 @@ def build_default_entries
   entry["start_year"]  = 0
   entry["end_month"]   = 0
   entry["end_year"]    = 0
-  entry["amount"]      = -200000
+  entry["amount"]      = -10000
   @entries << entry
 
+  # interest rate on debt 
+  entry = {}
+  entry["id"]          = "interest2"
+  entry["type"]        = "interest"
+  entry["reference"]   = "account3"
+  entry["description"] = "rate on account 2"
+  entry["comment"]     = "credit card apr"
+  entry["start_month"] = 0
+  entry["start_year"]  = 0
+  entry["end_month"]   = -1
+  entry["end_year"]    = 0
+  entry["amount"]      = 0.12
+  @entries << entry
+
+  # payment on debt
+  entry = {}
+  entry["id"]          = "payment1"
+  entry["type"]        = "payment"
+  entry["reference"]   = "account3"
+  entry["description"] = "monthly payment for account 3"
+  entry["comment"]     = "minimum payment includes principle and interest"
+  entry["start_month"] = 0
+  entry["start_year"]  = 0
+  entry["end_month"]   = 120
+  entry["end_year"]    = 0
+  entry["amount"]      = 100
+  @entries << entry
+
+  # withdrawls
   # income
   entry = {}
   entry["id"]          = "income1"
@@ -205,16 +248,16 @@ def save_entries(out_file, force)
   if (file)
     @entries.each do |entry|
       file.puts ""
-      file.puts "%-20s: %s" % [ "id",          entry["id"]          ]
-      file.puts "%-20s: %s" % [ "type",        entry["type"]        ]
-      file.puts "%-20s: %s" % [ "reference",   entry["reference"]   ]
-      file.puts "%-20s: %s" % [ "description", entry["description"] ]
-      file.puts "%-20s: %s" % [ "comment",     entry["comment"]     ]
-      file.puts "%-20s: %d" % [ "start_month", entry["start_month"] ]
-      file.puts "%-20s: %d" % [ "start_year",  entry["start_year"]  ]
-      file.puts "%-20s: %d" % [ "end_month",   entry["end_month"]   ]
-      file.puts "%-20s: %d" % [ "end_year",    entry["end_year"]    ]
-      file.puts "%-20s: %d" % [ "amount",      entry["amount"]      ]
+      file.puts "%-20s: %s"   % [ "id",          entry["id"]          ]
+      file.puts "%-20s: %s"   % [ "type",        entry["type"]        ]
+      file.puts "%-20s: %s"   % [ "reference",   entry["reference"]   ]
+      file.puts "%-20s: %s"   % [ "description", entry["description"] ]
+      file.puts "%-20s: %s"   % [ "comment",     entry["comment"]     ]
+      file.puts "%-20s: %d"   % [ "start_month", entry["start_month"] ]
+      file.puts "%-20s: %d"   % [ "start_year",  entry["start_year"]  ]
+      file.puts "%-20s: %d"   % [ "end_month",   entry["end_month"]   ]
+      file.puts "%-20s: %d"   % [ "end_year",    entry["end_year"]    ]
+      file.puts "%-20s: %.2f" % [ "amount",      entry["amount"]      ]
     end
   end
 end
@@ -228,6 +271,17 @@ Options:
   -o | --out-file        # Output modified portfolio plan file
   -m | --months          # Total months to show (default 120, or 10 years)
 "
+end
+
+#-----------------------------------------------------------------------
+def get_reference_amount(reference)
+  amount = 0
+  @entries.each_with_index do |entry, index|
+    if entry["id"] === reference
+      amount = @entries[index]["amount"]
+    end
+  end
+  amount
 end
 
 #-----------------------------------------------------------------------
@@ -321,12 +375,23 @@ while month <= options.months
     if start_month <= month and (end_month == -1 or end_month >= month)
       income    += amount if entry["type"] === "income"
       expenses  += amount if entry["type"] === "expense"
-      if entry["type"] === "deposit"
+
+      if entry["type"] === "interest"
+        gain = get_reference_amount(entry["reference"])
+        gain = gain * (amount/12.0) 
+        # update reference account for next interest calculation
+        deposit_to_reference(entry["reference"], gain)
+        # update income for on going total calculation
+        income += gain
+      end
+
+      if entry["type"] === "deposit" or entry["type"] === "payment"
         # update reference account for interest calculation
         deposit_to_reference(entry["reference"], amount)
         # update income for on going total calculation
         income += amount
       end
+
       if entry["type"] === "withdrawl"
         # update reference account for interest calculation
         withdrawl_from_reference(entry["reference"], amount)
