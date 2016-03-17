@@ -4,33 +4,69 @@ require "getoptlong"
 require "ostruct"
 require "fileutils"
 
+# TODO:
+# parse input file
+# skip input comments
+# pass input comments thru to out file
+# convert month to year/month
+# finish all entries (in the in_file?)
+# how to add in inflation?
+# 
+# future income
+# future expenses
+# inflation, single, ranges
+# account performace, single, ranges
+# plan vs actual?
+# monte carlo
+
+# entry definition
+# "id"          : data set unique string, used for associating "interest" with an account
+# "type"        : type of entry, asset|debt|income|expense|inflation|interest
+# "description" : description of entry, this field is not parsed
+# "comment"     : general comment about entry, this field is not parsed
+# "start_month" : start month for entry, 1-12
+# "start_year"  : start year  for entry
+# "end_month"   : end   month for entry, 1-12, -1 means never ends
+# "end_year"    : end   year  for entry
+# "amount"      : positive or negative amount
+
 # globals
 @entries = []
 
 #-----------------------------------------------------------------------
-# Usage
-#-----------------------------------------------------------------------
-def usage
-print "Usage: #{$scriptname} [options]
-Options:
-  -h | --help            # Help message
-  -i | --in_file         # Input portfolio plan file (use -o without -i for sample)
-  -o | --out_file        # Output modified portfolio plan file
-
-"
-end
-
-#-----------------------------------------------------------------------
-# Usage
-#-----------------------------------------------------------------------
 def build_default_entries
   @entries = []
+
+  # inflation
+  entry = {}
+  entry["id"]          = "inflation1"
+  entry["type"]        = "inflation"
+  entry["description"] = "projected inflation range 1"
+  entry["comment"]     = "amount field used for inflation rate, expect low for next 2 years"
+  entry["start_month"] = 0
+  entry["start_year"]  = 0
+  entry["end_month"]   = 24
+  entry["end_year"]    = 0
+  entry["amount"]      = 0.03
+  @entries << entry
+  entry = {}
+  entry["id"]          = "inflation2"
+  entry["type"]        = "inflation"
+  entry["description"] = "projected inflation range 2"
+  entry["comment"]     = "amount field used for inflation rate, expect to rise after 2 years"
+  entry["start_month"] = 24
+  entry["start_year"]  = 0
+  entry["end_month"]   = -1
+  entry["end_year"]    = 0
+  entry["amount"]      = 0.10
+  @entries << entry
+
   # assets
   entry = {}
   entry["id"]          = "acount1"
   entry["type"]        = "asset"
   entry["description"] = "account 1"
-  entry["comment"]     = "asset"
+  entry["comment"]     = "some account that is an asset"
   entry["start_month"] = 0
   entry["start_year"]  = 0
   entry["end_month"]   = 0
@@ -41,7 +77,7 @@ def build_default_entries
   entry["id"]          = "acount2"
   entry["type"]        = "asset"
   entry["description"] = "account 2"
-  entry["comment"]     = "asset"
+  entry["comment"]     = "another account that is an asset"
   entry["start_month"] = 0
   entry["start_year"]  = 0
   entry["end_month"]   = 0
@@ -51,7 +87,7 @@ def build_default_entries
   entry = {}
   entry["id"]          = "acount3"
   entry["type"]        = "debt"
-  entry["description"] = "account 2"
+  entry["description"] = "some account that is a debt"
   entry["comment"]     = "debt"
   entry["start_month"] = 0
   entry["start_year"]  = 0
@@ -120,6 +156,7 @@ def build_default_entries
   @entries << entry
 end
 
+#-----------------------------------------------------------------------
 def save_entries options
   if File.exists?(options.out_file)
     puts "File \"%s\" exists, continue? (ctrl-C to exit):" % options.out_file
@@ -143,7 +180,16 @@ def save_entries options
 end
 
 #-----------------------------------------------------------------------
-# Get options
+def usage
+print "Usage: #{$scriptname} [options]
+Options:
+  -h | --help            # Help message
+  -i | --in_file         # Input portfolio plan file (use -o without -i for sample)
+  -o | --out_file        # Output modified portfolio plan file
+
+"
+end
+
 #-----------------------------------------------------------------------
 parser = GetoptLong.new
 parser.set_options(
@@ -184,6 +230,7 @@ save_entries(options) if not options.out_file.nil?
 month = 0
 month_max = 12
 
+#-----------------------------------------------------------------------
 # determine current assets and debts
 assets = 0
 debts  = 0
@@ -209,35 +256,10 @@ while month <= month_max
     end
   end
 
-  puts "%4d %d" % [month, total]
+  puts "%4d\t%.2f" % [month, total]
   total = total + income + expenses
   month = month + 1
 end
-
-# TODO:
-# generate default output file
-# test if output file exists
-# parse input file
-# skip input comments
-# pass input comments thru to out file
-# convert month to year/month
-# finish all entries (in the in_file?)
-# how to add in inflation?
-# 
-# multiple accounts
-# assets
-# debts
-# mutliple monthly transactions
-# income
-# expenses
-# future income
-# future expenses
-# inflation, single, ranges
-# account performace, single, ranges
-# 
-# monte carlo
-#
-# plan vs actual?
 
 
 
