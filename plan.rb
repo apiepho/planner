@@ -5,10 +5,6 @@ require "ostruct"
 require "fileutils"
 
 # TODO:
-# parse input file
-#   skip input comments
-#   pass input comments thru to out file
-# build default/example file and remove from app
 # build test files for each type
 # build my own input file
 # support absolute month/year
@@ -34,208 +30,35 @@ require "fileutils"
 # "description" : description of entry, this field is not parsed
 # "comment"     : general comment about entry, this field is not parsed
 # "start_month" : start month for entry, 1-12
-# "start_year"  : start year  for entry, 0 means start month is relative, 0-N       TODO: support absolute
+# "start_year"  : start year  for entry, 0 means start month is relative, 0-N
 # "end_month"   : end   month for entry, 1-12, -1 means never ends
-# "end_year"    : end   year  for entry, 0 means end month is relative, 0-N         TODO: support absolute
+# "end_year"    : end   year  for entry, 0 means end month is relative, 0-N
 # "amount"      : positive or negative amount
 
 # globals
 @entries = []
 
 #-----------------------------------------------------------------------
-def build_default_entries
+def load_entries(in_file)
   @entries = []
-
-  # inflation
   entry = {}
-  entry["id"]          = "inflation1"
-  entry["type"]        = "inflation"
-  entry["description"] = "projected inflation range 1"
-  entry["comment"]     = "amount field used for inflation rate, expect low for next 2 years"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = 24
-  entry["end_year"]    = 0
-  entry["amount"]      = 0.01
-  @entries << entry
-  entry = {}
-  entry["id"]          = "inflation2"
-  entry["type"]        = "inflation"
-  entry["description"] = "projected inflation range 2"
-  entry["comment"]     = "amount field used for inflation rate, expect to rise after 2 years"
-  entry["start_month"] = 24
-  entry["start_year"]  = 0
-  entry["end_month"]   = -1
-  entry["end_year"]    = 0
-  entry["amount"]      = 0.04
-  @entries << entry
-
-  # assets
-  entry = {}
-  entry["id"]          = "account1"
-  entry["type"]        = "asset"
-  entry["description"] = "account 1"
-  entry["comment"]     = "some account that is an asset"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = 0
-  entry["end_year"]    = 0
-  entry["amount"]      = 100000
-  @entries << entry
-  entry = {}
-  entry["id"]          = "account2"
-  entry["type"]        = "asset"
-  entry["description"] = "account 2"
-  entry["comment"]     = "another account that is an asset"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = 0
-  entry["end_year"]    = 0
-  entry["amount"]      = 300000
-  @entries << entry
-
-  # interest/gain
-  entry = {}
-  entry["id"]          = "interest1"
-  entry["type"]        = "interest"
-  entry["reference"]   = "account1"
-  entry["description"] = "gain on account 1"
-  entry["comment"]     = "historical average"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = -1
-  entry["end_year"]    = 0
-  entry["amount"]      = 0.05
-  @entries << entry
-
-  # deposits
-  entry = {}
-  entry["id"]          = "deposit1"
-  entry["type"]        = "deposit"
-  entry["reference"]   = "account1"
-  entry["description"] = "recuring deposit to account 1"
-  entry["comment"]     = "dedicated portion of income 1 deposited to account 1"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = 120
-  entry["end_year"]    = 0
-  entry["amount"]      = 100
-  @entries << entry
-
-  # withdrawls
-  entry = {}
-  entry["id"]          = "withdrawl1"
-  entry["type"]        = "withdrawl"
-  entry["reference"]   = "account2"
-  entry["description"] = "recuring withdrawl to account 2"
-  entry["comment"]     = "ammount taken from account 2 every month, ongoing"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = -1
-  entry["end_year"]    = 0
-  entry["amount"]      = -50
-  @entries << entry
-
-  # debts
-  entry = {}
-  entry["id"]          = "account3"
-  entry["type"]        = "debt"
-  entry["description"] = "some account that is a debt"
-  entry["comment"]     = "debt"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = 0
-  entry["end_year"]    = 0
-  entry["amount"]      = -10000
-  @entries << entry
-
-  # interest rate on debt 
-  entry = {}
-  entry["id"]          = "interest2"
-  entry["type"]        = "interest"
-  entry["reference"]   = "account3"
-  entry["description"] = "rate on account 2"
-  entry["comment"]     = "credit card apr"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = -1
-  entry["end_year"]    = 0
-  entry["amount"]      = 0.12
-  @entries << entry
-
-  # payment on debt
-  entry = {}
-  entry["id"]          = "payment1"
-  entry["type"]        = "payment"
-  entry["reference"]   = "account3"
-  entry["description"] = "monthly payment for account 3"
-  entry["comment"]     = "minimum payment includes principle and interest"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = 120
-  entry["end_year"]    = 0
-  entry["amount"]      = 100
-  @entries << entry
-
-  # withdrawls
-  # income
-  entry = {}
-  entry["id"]          = "income1"
-  entry["type"]        = "income"
-  entry["description"] = "person1 pay"
-  entry["comment"]     = "income, next 10 years"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = 120
-  entry["end_year"]    = 0
-  entry["amount"]      = 1000
-  @entries << entry
-  entry = {}
-  entry["id"]          = "income2"
-  entry["type"]        = "income"
-  entry["description"] = "person1 pay"
-  entry["comment"]     = "income, next 15 years"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = 180
-  entry["end_year"]    = 0
-  entry["amount"]      = 2000
-  @entries << entry
-
-  # expenses
-  entry = {}
-  entry["id"]          = "expense1"
-  entry["type"]        = "expense"
-  entry["description"] = "utilities"
-  entry["comment"]     = "expense, never ends"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = -1
-  entry["end_year"]    = 0
-  entry["amount"]      = -100
-  @entries << entry
-  entry = {}
-  entry["id"]          = "expense2"
-  entry["type"]        = "expense"
-  entry["description"] = "credit card"
-  entry["comment"]     = "expense, average, never ends"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = -1
-  entry["end_year"]    = 0
-  entry["amount"]      = -1000
-  @entries << entry
-  entry = {}
-  entry["id"]          = "expense3"
-  entry["type"]        = "expense"
-  entry["description"] = "car loan"
-  entry["comment"]     = "expense, 2 years left"
-  entry["start_month"] = 0
-  entry["start_year"]  = 0
-  entry["end_month"]   = 24
-  entry["end_year"]    = 0
-  entry["amount"]      = -500
-  @entries << entry
+  lines = File.readlines(in_file)
+  lines.each do |line|
+    parts = line.split("#")                    # get line before comment
+    parts = parts[0].strip.split(":")          # split key and value
+    if parts.length == 2
+        key   = parts[0].strip
+        value = parts[1].strip
+        entry = {} if key === "id"             # assume entry starts with "id"
+        value = value.to_i if key === "start_month"
+        value = value.to_i if key === "start_year"
+        value = value.to_i if key === "end_month"
+        value = value.to_i if key === "end_year"
+        value = value.to_f if key === "amount"
+        entry[key] = value
+        @entries << entry if key === "amount"  # assume entry ends with "amount"
+    end
+  end
 end
 
 #-----------------------------------------------------------------------
@@ -267,7 +90,7 @@ def usage
 print "Usage: #{$scriptname} [options]
 Options:
   -h | --help            # Help message
-  -i | --in-file         # Input portfolio plan file (use -o without -i for sample)
+  -i | --in-file         # Input portfolio plan file (see sample.txt for starting point)
   -o | --out-file        # Output modified portfolio plan file
   -m | --months          # Total months to show (default 120, or 10 years)
 "
@@ -339,7 +162,7 @@ loop do
   end
 end
 
-build_default_entries if options.in_file.nil?
+load_entries(options.in_file)         if not options.in_file.nil?
 save_entries(options.out_file, false) if not options.out_file.nil?
 
 #-----------------------------------------------------------------------
@@ -404,7 +227,7 @@ while month <= options.months
   total = total + income + expenses
   month = month + 1
 end
-save_entries("debug.txt", true)
+#save_entries("debug.txt", true)
 
 # assume we can adjust for inflation after totals calculated
 totals_w_inflation = []
