@@ -11,6 +11,7 @@ require "fileutils"
 # convert month to year/month
 # finish all entries (in the in_file?)
 # how to add in inflation?
+# allow for resetting asset/debt 
 # 
 # future income
 # future expenses
@@ -21,13 +22,22 @@ require "fileutils"
 
 # entry definition
 # "id"          : data set unique string, used for associating "interest" with an account
-# "type"        : type of entry, asset|debt|income|expense|inflation|interest
+# "type"        : type of entry as follows:
+#    asset        : generally a positive balance bank or investment account, current/starting balance
+#    debt         : generally a negative balance loan or credit account, current/starting balance
+#    deposit      : increase to an asset balance
+#    withdrawl    : decrease to an asset balance
+#    interest     : positive/negative annual percentage rate for asset or debit
+#    payment      : decreast to a debt, assume includes interest and principle
+#    income       : increase to total                                               TODO: should this be deposit?
+#    expense      : decrease to total                                               TODO: should this be withdrawl?
+#    inflation    : post total reduction, can be multiple ranges
 # "description" : description of entry, this field is not parsed
 # "comment"     : general comment about entry, this field is not parsed
 # "start_month" : start month for entry, 1-12
-# "start_year"  : start year  for entry
+# "start_year"  : start year  for entry, 0 means start month is relative, 0-N       TODO: support absolute
 # "end_month"   : end   month for entry, 1-12, -1 means never ends
-# "end_year"    : end   year  for entry
+# "end_year"    : end   year  for entry, 0 means end month is relative, 0-N         TODO: support absolute
 # "amount"      : positive or negative amount
 
 # globals
@@ -184,8 +194,9 @@ def usage
 print "Usage: #{$scriptname} [options]
 Options:
   -h | --help            # Help message
-  -i | --in_file         # Input portfolio plan file (use -o without -i for sample)
-  -o | --out_file        # Output modified portfolio plan file
+  -i | --in-file         # Input portfolio plan file (use -o without -i for sample)
+  -o | --out-file        # Output modified portfolio plan file
+  -m | --months          # Total months to show (default 120, or 10 years)
 
 "
 end
@@ -193,14 +204,16 @@ end
 #-----------------------------------------------------------------------
 parser = GetoptLong.new
 parser.set_options(
-["-h", "--help", GetoptLong::NO_ARGUMENT],
-["-i", "--in_file", GetoptLong::REQUIRED_ARGUMENT],
-["-o", "--out_file", GetoptLong::REQUIRED_ARGUMENT]
+["-i", "--in-file",  GetoptLong::REQUIRED_ARGUMENT],
+["-o", "--out-file", GetoptLong::REQUIRED_ARGUMENT],
+["-m", "--months",   GetoptLong::REQUIRED_ARGUMENT],
+["-h", "--help",     GetoptLong::NO_ARGUMENT]
 )
 
 options = OpenStruct.new
 options.in_file = nil
 options.out_file = nil
+options.months = 120
 
 loop do
   begin
@@ -215,6 +228,8 @@ loop do
       options.in_file = arg
     when "-o"
       options.out_file = arg
+    when "-m"
+      options.months = arg.to_i
     end
 
   rescue => err
@@ -226,10 +241,6 @@ end
 build_default_entries if options.in_file.nil?
 save_entries(options) if not options.out_file.nil?
 
-# relative month range
-month = 0
-month_max = 12
-
 #-----------------------------------------------------------------------
 # determine current assets and debts
 assets = 0
@@ -237,27 +248,74 @@ debts  = 0
 total  = 0
 @entries.each do |entry|
   amount = entry["amount"]
-  assets += amount if entry["type"] === "asset"
-  debts  += amount if entry["type"] === "debt"
+  start_month = entry["start_month"]
+  end_month   = entry["end_month"]
+  # TODO: allow for absolute M/Y, including prior to current date?
+  if start_month == end_month and start_month == 0
+    assets += amount if entry["type"] === "asset"
+    debts  += amount if entry["type"] === "debt"
+  end
 end
 total = assets + debts
 
-# determine on going total
-while month <= month_max
+# determine on going total without inflation
+totals_wo_inflation = []
+month = 0
+while month <= options.months
   income = 0
   expenses = 0
   @entries.each do |entry|
-    amount = entry["amount"]
+    # get values
+    amount      = entry["amount"]
     start_month = entry["start_month"]
     end_month   = entry["end_month"]
+
+    # update total for this month
     if start_month <= month and (end_month == -1 or end_month >= month)
       income    += amount if entry["type"] === "income"
       expenses  += amount if entry["type"] === "expense"
     end
   end
-
-  puts "%4d\t%.2f" % [month, total]
+  totals_wo_inflation[month] = total
   total = total + income + expenses
+  month = month + 1
+end
+
+# assume we can adjust for inflation after totals calculated
+totals_w_inflation = []
+current_inflation_rate   = 0.0
+current_inflation_factor = 1.0
+month = 0
+while month <= options.months
+  # calculate inflaction adjusted total
+  total = totals_wo_inflation[month]
+  total = total * current_inflation_factor 
+  totals_w_inflation[month] = total
+
+  # update inflation rate/factor
+  @entries.each do |entry|
+    # get values
+    amount      = entry["amount"]
+    start_month = entry["start_month"]
+    end_month   = entry["end_month"]
+
+    # update total for this month
+    if start_month <= month and (end_month == -1 or end_month >= month)
+      current_inflation_rate = amount if entry["type"] === "inflation"
+    end
+  end
+  current_inflation_factor = current_inflation_factor - (current_inflation_rate/12.0)
+
+  month = month + 1
+end
+
+# display totals
+month = 0
+while month < options.months
+  total1 = totals_wo_inflation[month]
+  total2 = totals_w_inflation[month]
+  #puts "%4d\t%.2f\t%.2f" % [month, total1, total2]
+  puts "%4d\t%.2f\t%.2f\t\t%.2f" % [month, total1, total2, total2-total1]
   month = month + 1
 end
 
