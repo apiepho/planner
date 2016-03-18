@@ -47,16 +47,20 @@ require "date"
 # "comment"     : general comment about entry, this field is not parsed
 # "start_month" : start month for entry, relative 0-n
 # "end_month"   : end   month for entry, relative 0-n, -1 means never ends
+# "abs_start_month" : (optional) absolute start month for entry, 1-12, will override start_month
+# "abs_start_year"  : (optional) absolute start year  for entry, YYYY, will override start_month
+# "abs_end_month"   : (optional) absolute end   month for entry, 1-12, will override end_month
+# "abs_end_year"    : (optional) absolute end   year  for entry, YYYY, will override end_month
 # "amount"      : positive or negative amount
 
 # globals
 @entries = []
 
 #-----------------------------------------------------------------------
-def load_entries(in_file)
+def load_entries(options)
   @entries = []
   entry = {}
-  lines = File.readlines(in_file)
+  lines = File.readlines(options.in_file)
   lines.each do |line|
     parts = line.split("#")                    # get line before comment
     parts = parts[0].strip.split(":")          # split key and value
@@ -66,9 +70,41 @@ def load_entries(in_file)
         entry = {} if key === "id"             # assume entry starts with "id"
         value = value.to_i if key === "start_month"
         value = value.to_i if key === "end_month"
+        value = value.to_i if key === "abs_start_month"
+        value = value.to_i if key === "abs_start_year"
+        value = value.to_i if key === "abs_end_month"
+        value = value.to_i if key === "abs_end_year"
         value = value.to_f if key === "amount"
         entry[key] = value
-        @entries << entry if key === "amount"  # assume entry ends with "amount"
+
+        if key === "amount"  # assume entry ends with "amount"
+          # convert abs_start_* to relative start_month
+          if entry.key?("abs_start_month") and entry.key?("abs_start_year")
+            temp_month = Date.today.month
+            temp_year  = Date.today.year
+            temp_month = options.start_month if not options.start_month.nil?
+            temp_year  = options.start_year  if not options.start_year.nil?
+            total_months1 = (temp_month-1) + (12*temp_year)                    # base total months for this run
+            temp_month = entry["abs_start_month"]
+            temp_year  = entry["abs_start_year"]
+            total_months2 = (temp_month-1) + (12*temp_year)                    # abs start total months
+            entry["start_month"] = total_months2 - total_months1
+          end
+          # convert abs_end_* to relative end_month
+          if entry.key?("abs_end_month") and entry.key?("abs_end_year")
+            temp_month = Date.today.month
+            temp_year  = Date.today.year
+            temp_month = options.start_month if not options.start_month.nil?
+            temp_year  = options.start_year  if not options.start_year.nil?
+            total_months1 = (temp_month-1) + (12*temp_year)                    # base total months for this run
+            temp_month = entry["abs_end_month"]
+            temp_year  = entry["abs_end_year"]
+            total_months2 = (temp_month-1) + (12*temp_year)                    # abs end total months
+            entry["end_month"] = total_months2 - total_months1
+          end
+
+          @entries << entry
+        end # key === amount
     end
   end
 end
@@ -90,6 +126,10 @@ def save_entries(out_file, force)
       file.puts "%-20s: %s"   % [ "comment",     entry["comment"]     ]
       file.puts "%-20s: %d"   % [ "start_month", entry["start_month"] ]
       file.puts "%-20s: %d"   % [ "end_month",   entry["end_month"]   ]
+      file.puts "%-20s: %d"   % [ "abs_start_month",  entry["abs_start_month"] ] if entry.key?("abs_start_month")
+      file.puts "%-20s: %d"   % [ "abs_start_year",   entry["abs_start_year"]  ] if entry.key?("abs_start_year")
+      file.puts "%-20s: %d"   % [ "abs_end_month",    entry["abs_end_month"]   ] if entry.key?("abs_end_month")
+      file.puts "%-20s: %d"   % [ "abs_end_year",     entry["abs_end_year"]    ] if entry.key?("abs_end_year")
       file.puts "%-20s: %.2f" % [ "amount",      entry["amount"]      ]
     end
   end
@@ -193,7 +233,7 @@ loop do
   end
 end
 
-load_entries(options.in_file)         if not options.in_file.nil?
+load_entries(options)                 if not options.in_file.nil?
 save_entries(options.out_file, false) if not options.out_file.nil?
 
 #-----------------------------------------------------------------------

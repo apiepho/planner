@@ -15,12 +15,17 @@
 # "reference"   : id of entry this applies to, used with deposit|withdrawl|interest|payment
 # "description" : description of entry, this field is not parsed
 # "comment"     : general comment about entry, this field is not parsed
-# "start_month" : start month for entry, 1-12
-# "end_month"   : end   month for entry, 1-12, -1 means never ends
+# "start_month" : start month for entry, relative 0-n
+# "end_month"   : end   month for entry, relative 0-n, -1 means never ends
+# "abs_start_month" : (optional) absolute start month for entry, 1-12, will override start_month
+# "abs_start_year"  : (optional) absolute start year  for entry, YYYY, will override start_month
+# "abs_end_month"   : (optional) absolute end   month for entry, 1-12, will override end_month
+# "abs_end_year"    : (optional) absolute end   year  for entry, YYYY, will override end_month
 # "amount"      : positive or negative amount
 
 # NOTE: program assumes "id" is first key/value and "amount" is last
 
+#########################################################################################
 # inflation
 id                  : inflation1
 type                : inflation
@@ -40,6 +45,7 @@ start_month         : 24
 end_month           : -1
 amount              : 0.04
 
+#########################################################################################
 # assets
 id                  : account1
 type                : asset
@@ -59,6 +65,7 @@ start_month         : 0
 end_month           : 0
 amount              : 300000.00
 
+#########################################################################################
 # interest/gains
 id                  : interest1
 type                : interest
@@ -69,6 +76,7 @@ start_month         : 0
 end_month           : -1
 amount              : 0.05
 
+#########################################################################################
 # deposits
 id                  : deposit1
 type                : deposit
@@ -79,6 +87,7 @@ start_month         : 0
 end_month           : 120
 amount              : 100.00
 
+#########################################################################################
 # withdrawls
 id                  : withdrawl1
 type                : withdrawl
@@ -89,6 +98,7 @@ start_month         : 0
 end_month           : -1
 amount              : -50.00
 
+#########################################################################################
 # debts
 id                  : account3
 type                : debt
@@ -99,6 +109,7 @@ start_month         : 0
 end_month           : 0
 amount              : -10000.00
 
+#########################################################################################
 # interest rate on debts
 id                  : interest2
 type                : interest
@@ -109,6 +120,7 @@ start_month         : 0
 end_month           : -1
 amount              : 0.12
 
+#########################################################################################
 # payment on debts
 id                  : payment1
 type                : payment
@@ -119,6 +131,7 @@ start_month         : 0
 end_month           : 120
 amount              : 100.00
 
+#########################################################################################
 # income
 id                  : income1
 type                : income
@@ -129,6 +142,7 @@ start_month         : 0
 end_month           : 120
 amount              : 1000.00
 
+#########################################################################################
 id                  : income2
 type                : income
 reference           : 
@@ -138,6 +152,7 @@ start_month         : 0
 end_month           : 180
 amount              : 2000.00
 
+#########################################################################################
 # expenses
 id                  : expense1
 type                : expense
@@ -148,6 +163,7 @@ start_month         : 0
 end_month           : -1
 amount              : -100.00
 
+#########################################################################################
 id                  : expense2
 type                : expense
 reference           : 
@@ -157,6 +173,7 @@ start_month         : 0
 end_month           : -1
 amount              : -1000.00
 
+#########################################################################################
 id                  : expense3
 type                : expense
 reference           : 
