@@ -16,9 +16,7 @@
 # "description" : description of entry, this field is not parsed
 # "comment"     : general comment about entry, this field is not parsed
 # "start_month" : start month for entry, 1-12
-# "start_year"  : start year  for entry, 0 means start month is relative, 0-N
 # "end_month"   : end   month for entry, 1-12, -1 means never ends
-# "end_year"    : end   year  for entry, 0 means end month is relative, 0-N
 # "amount"      : positive or negative amount
 
 # NOTE: program assumes "id" is first key/value and "amount" is last
@@ -30,9 +28,7 @@ reference           :
 description         : projected inflation range 1
 comment             : amount field used for inflation rate, expect low for next 2 years
 start_month         : 0
-start_year          : 0
 end_month           : 24
-end_year            : 0
 amount              : 0.01
 
 id                  : inflation2
@@ -41,9 +37,7 @@ reference           :
 description         : projected inflation range 2
 comment             : amount field used for inflation rate, expect to rise after 2 years
 start_month         : 24
-start_year          : 0
 end_month           : -1
-end_year            : 0
 amount              : 0.04
 
 # assets
@@ -53,9 +47,7 @@ reference           :
 description         : account 1
 comment             : some account that is an asset
 start_month         : 0
-start_year          : 0
 end_month           : 0
-end_year            : 0
 amount              : 100000.00
 
 id                  : account2
@@ -64,9 +56,7 @@ reference           :
 description         : account 2
 comment             : another account that is an asset
 start_month         : 0
-start_year          : 0
 end_month           : 0
-end_year            : 0
 amount              : 300000.00
 
 # interest/gains
@@ -76,9 +66,7 @@ reference           : account1
 description         : gain on account 1
 comment             : historical average
 start_month         : 0
-start_year          : 0
 end_month           : -1
-end_year            : 0
 amount              : 0.05
 
 # deposits
@@ -88,9 +76,7 @@ reference           : account1
 description         : recuring deposit to account 1
 comment             : dedicated portion of income 1 deposited to account 1
 start_month         : 0
-start_year          : 0
 end_month           : 120
-end_year            : 0
 amount              : 100.00
 
 # withdrawls
@@ -100,9 +86,7 @@ reference           : account2
 description         : recuring withdrawl to account 2
 comment             : ammount taken from account 2 every month, ongoing
 start_month         : 0
-start_year          : 0
 end_month           : -1
-end_year            : 0
 amount              : -50.00
 
 # debts
@@ -112,9 +96,7 @@ reference           :
 description         : some account that is a debt
 comment             : debt
 start_month         : 0
-start_year          : 0
 end_month           : 0
-end_year            : 0
 amount              : -10000.00
 
 # interest rate on debts
@@ -124,9 +106,7 @@ reference           : account3
 description         : rate on account 2
 comment             : credit card apr
 start_month         : 0
-start_year          : 0
 end_month           : -1
-end_year            : 0
 amount              : 0.12
 
 # payment on debts
@@ -136,9 +116,7 @@ reference           : account3
 description         : monthly payment for account 3
 comment             : minimum payment includes principle and interest
 start_month         : 0
-start_year          : 0
 end_month           : 120
-end_year            : 0
 amount              : 100.00
 
 # income
@@ -148,9 +126,7 @@ reference           :
 description         : person1 pay
 comment             : income, next 10 years
 start_month         : 0
-start_year          : 0
 end_month           : 120
-end_year            : 0
 amount              : 1000.00
 
 id                  : income2
@@ -159,9 +135,7 @@ reference           :
 description         : person1 pay
 comment             : income, next 15 years
 start_month         : 0
-start_year          : 0
 end_month           : 180
-end_year            : 0
 amount              : 2000.00
 
 # expenses
@@ -171,9 +145,7 @@ reference           :
 description         : utilities
 comment             : expense, never ends
 start_month         : 0
-start_year          : 0
 end_month           : -1
-end_year            : 0
 amount              : -100.00
 
 id                  : expense2
@@ -182,9 +154,7 @@ reference           :
 description         : credit card
 comment             : expense, average, never ends
 start_month         : 0
-start_year          : 0
 end_month           : -1
-end_year            : 0
 amount              : -1000.00
 
 id                  : expense3
@@ -193,7 +163,5 @@ reference           :
 description         : car loan
 comment             : expense, 2 years left
 start_month         : 0
-start_year          : 0
 end_month           : 24
-end_year            : 0
 amount              : -500.00

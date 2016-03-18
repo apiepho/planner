@@ -3,6 +3,7 @@
 require "getoptlong"
 require "ostruct"
 require "fileutils"
+require "date"
 
 # TODO:
 # build test files for each type
@@ -23,7 +24,6 @@ require "fileutils"
 #    test relative months
 #    test absolute months
 # build my own input file
-# support absolute month/year
 # 
 # TODO: future features
 # allow for resetting asset/debt 
@@ -45,10 +45,8 @@ require "fileutils"
 # "reference"   : id of entry this applies to, used with deposit|withdrawl|interest|payment
 # "description" : description of entry, this field is not parsed
 # "comment"     : general comment about entry, this field is not parsed
-# "start_month" : start month for entry, 1-12
-# "start_year"  : start year  for entry, 0 means start month is relative, 0-N
-# "end_month"   : end   month for entry, 1-12, -1 means never ends
-# "end_year"    : end   year  for entry, 0 means end month is relative, 0-N
+# "start_month" : start month for entry, relative 0-n
+# "end_month"   : end   month for entry, relative 0-n, -1 means never ends
 # "amount"      : positive or negative amount
 
 # globals
@@ -67,9 +65,7 @@ def load_entries(in_file)
         value = parts[1].strip
         entry = {} if key === "id"             # assume entry starts with "id"
         value = value.to_i if key === "start_month"
-        value = value.to_i if key === "start_year"
         value = value.to_i if key === "end_month"
-        value = value.to_i if key === "end_year"
         value = value.to_f if key === "amount"
         entry[key] = value
         @entries << entry if key === "amount"  # assume entry ends with "amount"
@@ -93,9 +89,7 @@ def save_entries(out_file, force)
       file.puts "%-20s: %s"   % [ "description", entry["description"] ]
       file.puts "%-20s: %s"   % [ "comment",     entry["comment"]     ]
       file.puts "%-20s: %d"   % [ "start_month", entry["start_month"] ]
-      file.puts "%-20s: %d"   % [ "start_year",  entry["start_year"]  ]
       file.puts "%-20s: %d"   % [ "end_month",   entry["end_month"]   ]
-      file.puts "%-20s: %d"   % [ "end_year",    entry["end_year"]    ]
       file.puts "%-20s: %.2f" % [ "amount",      entry["amount"]      ]
     end
   end
@@ -109,6 +103,14 @@ Options:
   -i | --in-file         # Input portfolio plan file (see sample.txt for starting point)
   -o | --out-file        # Output modified portfolio plan file
   -m | --months          # Total months to show (default 120, or 10 years)
+  -M | --start-month     # Start month for display
+  -Y | --start-year      # Start year  for display
+  -d | --display-opt     # Display options:
+                           0x0001 - display month/year
+                           0x0010 - display total w/o inflation adjustment
+                           0x0100 - display total w   inflation adjustment
+                           0x1000 - display numbers div 1000
+                           Example: 0x0101 displays month/year and total w/ inflation
 "
 end
 
@@ -144,16 +146,23 @@ end
 #-----------------------------------------------------------------------
 parser = GetoptLong.new
 parser.set_options(
-["-i", "--in-file",  GetoptLong::REQUIRED_ARGUMENT],
-["-o", "--out-file", GetoptLong::REQUIRED_ARGUMENT],
-["-m", "--months",   GetoptLong::REQUIRED_ARGUMENT],
-["-h", "--help",     GetoptLong::NO_ARGUMENT]
+["-i", "--in-file",     GetoptLong::REQUIRED_ARGUMENT],
+["-o", "--out-file",    GetoptLong::REQUIRED_ARGUMENT],
+["-m", "--months",      GetoptLong::REQUIRED_ARGUMENT],
+["-M", "--start-month", GetoptLong::REQUIRED_ARGUMENT],
+["-Y", "--start_year",  GetoptLong::REQUIRED_ARGUMENT],
+["-d", "--display-opt", GetoptLong::REQUIRED_ARGUMENT],
+["-h", "--help",        GetoptLong::NO_ARGUMENT]
 )
 
 options = OpenStruct.new
 options.in_file = nil
 options.out_file = nil
 options.months = 120
+options.start_month = nil
+options.start_year = nil
+# relative month, w/o and w/ inflation, div 1000
+options.display_opt = 0x1110
 
 loop do
   begin
@@ -170,6 +179,12 @@ loop do
       options.out_file = arg
     when "-m"
       options.months = arg.to_i
+    when "-M"
+      options.start_month = arg.to_i
+    when "-Y"
+      options.start_year = arg.to_i
+    when "-d"
+      options.display_opt = arg.to_i(16)
     end
 
   rescue => err
@@ -272,16 +287,30 @@ while month <= options.months
   month = month + 1
 end
 
+# init possible month/year display
+start_month = Date.today.month
+start_year  = Date.today.year
+start_month = options.start_month if not options.start_month.nil?
+start_year  = options.start_year  if not options.start_year.nil?
+
 # display totals
 month = 0
 while month < options.months
   total1 = totals_wo_inflation[month]
   total2 = totals_w_inflation[month]
-  #puts "%4d\t%.2f\t%.2f" % [month, total1, total2]
-  puts "%4d\t%.2f\t%.2f\t\t%.2f" % [month, total1, total2, total2-total1]
+  month_str = "%4d " % [month] if (options.display_opt & 0x0001) == 0x0000
+  if (options.display_opt & 0x0001) == 0x0001
+     total_months = (start_month-1) + month + (12*start_year)
+     this_month   = (total_months % 12) + 1
+     this_year    = (total_months / 12)
+     month_str = "%02d/%04d " % [this_month, this_year]
+  end
+  total_wo = ""
+  total_w  = ""
+  total_wo = "\t%.2f" % [total1]       if (options.display_opt & 0x1010) == 0x0010
+  total_wo = "\t%d"   % [total1/1000]  if (options.display_opt & 0x1010) == 0x1010
+  total_w  = "\t%.2f" % [total2]       if (options.display_opt & 0x1100) == 0x0100
+  total_w  = "\t%d"   % [total2/1000]  if (options.display_opt & 0x1100) == 0x1100
+  puts "%s%s%s" % [month_str, total_wo, total_w]
   month = month + 1
 end
-
-
-
-
