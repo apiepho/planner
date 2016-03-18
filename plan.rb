@@ -6,6 +6,22 @@ require "fileutils"
 
 # TODO:
 # build test files for each type
+#    test with sample to verify it doesn't change
+#    asset w/ inflation
+#    asset w/o inflation
+#    asset and debt
+#    asset with deposit
+#    asset with withdrawl
+#    asset with interest
+#    debt with deposit
+#    debt with interest
+#    debt with interest and payment
+#    asset and income
+#    asset and expense
+#    asset and debt with recurring deposit
+#    asset and debt with recurring expense
+#    test relative months
+#    test absolute months
 # build my own input file
 # support absolute month/year
 # 
