@@ -135,6 +135,14 @@ def save_entries(out_file, force)
   end
 end
 
+DISOPT_NONE          = 0x0000
+DISOPT_MMYYYY        = 0x0001
+DISOPT_TOTAL_WO_INFL = 0x0002
+DISOPT_TOTAL_W__INFL = 0x0004
+DISOPT_IN_THOUSANDS  = 0x0010
+DISOPT_WO_AND_THOUS  = 0x0012
+DISOPT_W__AND_THOUS  = 0x0014
+
 #-----------------------------------------------------------------------
 def usage
 print "Usage: #{$scriptname} [options]
@@ -147,10 +155,10 @@ Options:
   -Y | --start-year      # Start year  for display
   -d | --display-opt     # Display options:
                            0x0001 - display month/year
-                           0x0010 - display total w/o inflation adjustment
-                           0x0100 - display total w   inflation adjustment
-                           0x1000 - display numbers div 1000
-                           Example: 0x0101 displays month/year and total w/ inflation
+                           0x0002 - display total w/o inflation adjustment
+                           0x0004 - display total w   inflation adjustment
+                           0x0010 - display numbers div 1000
+                           Example: 0x0014 displays month/year and total w/ inflation
 "
 end
 
@@ -338,8 +346,8 @@ month = 0
 while month < options.months
   total1 = totals_wo_inflation[month]
   total2 = totals_w_inflation[month]
-  month_str = "%4d " % [month] if (options.display_opt & 0x0001) == 0x0000
-  if (options.display_opt & 0x0001) == 0x0001
+  month_str = "%4d " % [month] if (options.display_opt & DISOPT_MMYYYY) == DISOPT_NONE
+  if (options.display_opt & DISOPT_MMYYYY) == DISOPT_MMYYYY
      total_months = (start_month-1) + month + (12*start_year)
      this_month   = (total_months % 12) + 1
      this_year    = (total_months / 12)
@@ -347,10 +355,10 @@ while month < options.months
   end
   total_wo = ""
   total_w  = ""
-  total_wo = "\t%.2f" % [total1]       if (options.display_opt & 0x1010) == 0x0010
-  total_wo = "\t%d"   % [total1/1000]  if (options.display_opt & 0x1010) == 0x1010
-  total_w  = "\t%.2f" % [total2]       if (options.display_opt & 0x1100) == 0x0100
-  total_w  = "\t%d"   % [total2/1000]  if (options.display_opt & 0x1100) == 0x1100
+  total_wo = "\t%.2f" % [total1]       if (options.display_opt & DISOPT_WO_AND_THOUS) == DISOPT_TOTAL_WO_INFL
+  total_wo = "\t%d"   % [total1/1000]  if (options.display_opt & DISOPT_WO_AND_THOUS) == DISOPT_WO_AND_THOUS
+  total_w  = "\t%.2f" % [total2]       if (options.display_opt & DISOPT_W__AND_THOUS) == DISOPT_TOTAL_W__INFL
+  total_w  = "\t%d"   % [total2/1000]  if (options.display_opt & DISOPT_W__AND_THOUS) == DISOPT_W__AND_THOUS
   puts "%s%s%s" % [month_str, total_wo, total_w]
   month = month + 1
 end
