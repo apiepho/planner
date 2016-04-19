@@ -55,6 +55,8 @@ require "date"
 
 # globals
 @entries = []
+@entries_wo = []
+@entries_w  = []
 
 #-----------------------------------------------------------------------
 def load_entries(options)
@@ -135,13 +137,17 @@ def save_entries(out_file, force)
   end
 end
 
-DISOPT_NONE          = 0x0000
-DISOPT_MMYYYY        = 0x0001
-DISOPT_TOTAL_WO_INFL = 0x0002
-DISOPT_TOTAL_W__INFL = 0x0004
-DISOPT_IN_THOUSANDS  = 0x0010
-DISOPT_WO_AND_THOUS  = 0x0012
-DISOPT_W__AND_THOUS  = 0x0014
+DISOPT_NONE                         = 0x0000
+DISOPT_MMYYYY                       = 0x0001
+DISOPT_TOTAL_WO_INFL                = 0x0002
+DISOPT_TOTAL_W__INFL                = 0x0004
+DISOPT_IN_THOUSANDS                 = 0x0010
+DISOPT_WO_AND_THOUS                 = 0x0012
+DISOPT_W__AND_THOUS                 = 0x0014
+DISOPT_ACCOUNTS                     = 0x0100
+DISOPT_ACCOUNTS_INFO                = 0x0200
+DISOPT_ACCOUNTS_INCOME_EXPENSE      = 0x0400
+DISOPT_ACCOUNTS_INFLATION_INTEREST  = 0x0800
 
 #-----------------------------------------------------------------------
 def usage
@@ -158,35 +164,39 @@ Options:
                            0x0002 - display total w/o inflation adjustment
                            0x0004 - display total w   inflation adjustment
                            0x0010 - display numbers div 1000
+                           0x0100 - display accounts as additional columns
+                           0x0200 - display accounts info as rows above header
+                           0x0400 - display accounts including income/expense/deposit/withdrawl
+                           0x0800 - display accounts including inflation/interest
                            Example: 0x0014 displays month/year and total w/ inflation
 "
 end
 
 #-----------------------------------------------------------------------
-def get_reference_amount(reference)
+def get_reference_amount(given_entries, reference)
   amount = 0
-  @entries.each_with_index do |entry, index|
+  given_entries.each_with_index do |entry, index|
     if entry["id"] === reference
-      amount = @entries[index]["amount"]
+      amount = given_entries[index]["amount"]
     end
   end
   amount
 end
 
 #-----------------------------------------------------------------------
-def deposit_to_reference(reference, amount)
-  @entries.each_with_index do |entry, index|
+def deposit_to_reference(given_entries, reference, amount)
+  given_entries.each_with_index do |entry, index|
     if entry["id"] === reference
-      @entries[index]["amount"] += amount
+      given_entries[index]["amount"] += amount
     end
   end
 end
 
 #-----------------------------------------------------------------------
-def withdrawl_from_reference(reference, amount)
-  @entries.each_with_index do |entry, index|
+def withdrawl_from_reference(given_entries, reference, amount)
+  given_entries.each_with_index do |entry, index|
     if entry["id"] === reference
-      @entries[index]["amount"] += amount
+      given_entries[index]["amount"] += amount
     end
   end
 end
@@ -243,95 +253,236 @@ end
 
 load_entries(options)                 if not options.in_file.nil?
 save_entries(options.out_file, false) if not options.out_file.nil?
-
-#-----------------------------------------------------------------------
-# determine current assets and debts
-assets = 0
-debts  = 0
-total  = 0
 @entries.each do |entry|
-  amount = entry["amount"]
-  start_month = entry["start_month"]
-  end_month   = entry["end_month"]
-  # TODO: allow for absolute M/Y, including prior to current date?
-  if start_month == end_month and start_month == 0
-    assets += amount if entry["type"] === "asset"
-    debts  += amount if entry["type"] === "debt"
-  end
+  @entries_wo << entry.dup
+  @entries_w  << entry.dup
 end
-total = assets + debts
 
-# determine on going total without inflation
-totals_wo_inflation = []
-month = 0
-while month <= options.months
-  income = 0
-  expenses = 0
-  @entries.each do |entry|
-    # get values
-    amount      = entry["amount"]
-    start_month = entry["start_month"]
-    end_month   = entry["end_month"]
 
-    # update total for this month
-    if start_month <= month and (end_month == -1 or end_month >= month)
-      income    += amount if entry["type"] === "income"
-      expenses  += amount if entry["type"] === "expense"
-
-      if entry["type"] === "interest"
-        gain = get_reference_amount(entry["reference"])
-        gain = gain * (amount/12.0) 
-        # update reference account for next interest calculation
-        deposit_to_reference(entry["reference"], gain)
-        # update income for on going total calculation
-        income += gain
-      end
-
-      if entry["type"] === "deposit" or entry["type"] === "payment"
-        # update reference account for interest calculation
-        deposit_to_reference(entry["reference"], amount)
-        # update income for on going total calculation
-        income += amount
-      end
-
-      if entry["type"] === "withdrawl"
-        # update reference account for interest calculation
-        withdrawl_from_reference(entry["reference"], amount)
-        # update income for on going total calculation
-        income += amount
+# display account info
+if (options.display_opt & DISOPT_ACCOUNTS_INFO) != DISOPT_NONE
+  hdr_count = 0
+  hdr_total = 12
+  while hdr_count < hdr_total
+    month_hdr    = ""
+    total_wo_hdr = ""
+    total_w_hdr  = ""
+    accounts_hdr = ""
+    month_hdr    = " "                     if hdr_count == 0
+    month_hdr    = "  type"                if hdr_count == 1
+    month_hdr    = "  reference"           if hdr_count == 2
+    month_hdr    = "  description"         if hdr_count == 3
+    month_hdr    = "  comment"             if hdr_count == 4
+    month_hdr    = "  start_month"         if hdr_count == 5
+    month_hdr    = "  end_month"           if hdr_count == 6
+    month_hdr    = "  abs_start_month"     if hdr_count == 7
+    month_hdr    = "  abs_start_year"      if hdr_count == 8
+    month_hdr    = "  abs_end_month"       if hdr_count == 9
+    month_hdr    = "  abs_end_year"        if hdr_count == 10
+    month_hdr    = "  amount"              if hdr_count == 11
+    total_wo_hdr = "\t%s" % [" "]          if hdr_count == 0 and (options.display_opt & DISOPT_TOTAL_WO_INFL) != DISOPT_NONE
+    total_w_hdr  = "\t%s" % [" "]          if hdr_count == 0 and (options.display_opt & DISOPT_TOTAL_W__INFL) != DISOPT_NONE
+    if (options.display_opt & DISOPT_ACCOUNTS) != DISOPT_NONE
+      @entries.each do |entry|
+        if (options.display_opt & DISOPT_ACCOUNTS_INCOME_EXPENSE) === DISOPT_NONE
+          next if entry["type"] === "income"  or entry["type"] === "expense"
+          next if entry["type"] === "deposit" or entry["type"] === "withdrawl"
+        end
+        if (options.display_opt & DISOPT_ACCOUNTS_INFLATION_INTEREST) === DISOPT_NONE
+          next if entry["type"] === "inflation" or entry["type"] === "interest"
+        end
+        accounts_hdr << "\t%12s" % entry["id"]              if hdr_count == 0
+        accounts_hdr << "\t%12s" % entry["type"]            if hdr_count == 1
+        accounts_hdr << "\t%12s" % entry["reference"]       if hdr_count == 2
+        accounts_hdr << "\t\"%12s\"" % entry["description"] if hdr_count == 3
+        accounts_hdr << "\t\"%12s\"" % entry["comment"]     if hdr_count == 4
+        accounts_hdr << "\t%12s" % entry["start_month"]     if hdr_count == 5
+        accounts_hdr << "\t%12s" % entry["end_month"]       if hdr_count == 6
+        accounts_hdr << "\t%12s" % entry["abs_start_month"] if hdr_count == 7
+        accounts_hdr << "\t%12s" % entry["abs_start_year"]  if hdr_count == 8
+        accounts_hdr << "\t%12s" % entry["abs_end_month"]   if hdr_count == 9
+        accounts_hdr << "\t%12s" % entry["abs_end_year"]    if hdr_count == 10
+        accounts_hdr << "\t%12.2f" % entry["amount"]        if hdr_count == 11
       end
     end
+    
+    puts "%-16s%14s%14s%s" % [month_hdr, total_wo_hdr, total_w_hdr, accounts_hdr]
+    hdr_count = hdr_count + 1
   end
-  totals_wo_inflation[month] = total
-  total = total + income + expenses
-  month = month + 1
 end
-#save_entries("debug.txt", true)
 
-# assume we can adjust for inflation after totals calculated
-totals_w_inflation = []
+# display header
+marker = " "
+marker = "*" if (options.display_opt & DISOPT_TOTAL_W__INFL) != DISOPT_NONE
+month_hdr    = " "
+total_wo_hdr = " "
+total_w_hdr  = " "
+accounts_hdr = ""
+account_types = []
+month_hdr    = "DATE"
+total_wo_hdr = "\t%s" % ["TOTAL"]      if (options.display_opt & DISOPT_TOTAL_WO_INFL) != DISOPT_NONE
+total_w_hdr  = "\t%s" % ["TOTAL*"]     if (options.display_opt & DISOPT_TOTAL_W__INFL) != DISOPT_NONE
+if (options.display_opt & DISOPT_ACCOUNTS) != DISOPT_NONE
+  @entries.each do |entry|
+    if (options.display_opt & DISOPT_ACCOUNTS_INCOME_EXPENSE) === DISOPT_NONE
+          next if entry["type"] === "income"  or entry["type"] === "expense"
+          next if entry["type"] === "deposit" or entry["type"] === "withdrawl"
+    end
+    if (options.display_opt & DISOPT_ACCOUNTS_INFLATION_INTEREST) === DISOPT_NONE
+      next if entry["type"] === "inflation" or entry["type"] === "interest"
+    end
+    str = "%s%s" % [entry["id"], marker]
+    accounts_hdr << "\t%12s" % str
+    account_types << entry["type"]
+  end
+end
+puts "%-16s%14s%14s%s" % [month_hdr, total_wo_hdr, total_w_hdr, accounts_hdr]
+
+
+# build array of running account balances and overall totals
 current_inflation_rate   = 0.0
 current_inflation_factor = 1.0
+balances_wo   = {}
+balances_w    = {}
+totals_wo     = {}
+totals_w      = {}
 month = 0
 while month <= options.months
-  # calculate inflaction adjusted total
-  total = totals_wo_inflation[month]
-  total = total * current_inflation_factor 
-  totals_w_inflation[month] = total
+  
+  # get total from assets/debts and gather running balances, no inflation
+  total = 0
+  @entries_wo.each do |entry|
+    amount      = entry["amount"]
+    start_month = entry["start_month"]
+    end_month   = entry["end_month"]
+    if start_month <= month and (end_month <= 0 or end_month >= month)
+      total += amount if entry["type"] === "asset" or entry["type"] === "debt"
+    end
+  end
+  if (options.display_opt & DISOPT_ACCOUNTS) != DISOPT_NONE
+    balances = []
+    @entries_wo.each do |entry|
+      if (options.display_opt & DISOPT_ACCOUNTS_INCOME_EXPENSE) === DISOPT_NONE
+            next if entry["type"] === "income"  or entry["type"] === "expense"
+            next if entry["type"] === "deposit" or entry["type"] === "withdrawl"
+      end
+      if (options.display_opt & DISOPT_ACCOUNTS_INFLATION_INTEREST) === DISOPT_NONE
+        next if entry["type"] === "inflation" or entry["type"] === "interest"
+      end
+      amount      = entry["amount"]
+      start_month = entry["start_month"]
+      end_month   = entry["end_month"]
+      if start_month <= month and (end_month <= 0 or end_month >= month)
+        balances << amount
+      else
+        balances << 0
+      end
+    end
+    balances_wo[month] = balances
+  end
+  totals_wo[month] = total
 
-  # update inflation rate/factor
-  @entries.each do |entry|
+  # get total from assets/debts and gather running balances, with inflation
+  if (options.display_opt & DISOPT_TOTAL_W__INFL) != DISOPT_NONE
+    total = 0
+    @entries_w.each do |entry|
+      amount = entry["amount"]
+      total += amount if entry["type"] === "asset" or entry["type"] === "debt"
+    end
+    if (options.display_opt & DISOPT_ACCOUNTS) != DISOPT_NONE
+      balances = []
+      @entries_w.each do |entry|
+        if (options.display_opt & DISOPT_ACCOUNTS_INCOME_EXPENSE) === DISOPT_NONE
+              next if entry["type"] === "income"  or entry["type"] === "expense"
+              next if entry["type"] === "deposit" or entry["type"] === "withdrawl"
+        end
+        if (options.display_opt & DISOPT_ACCOUNTS_INFLATION_INTEREST) === DISOPT_NONE
+          next if entry["type"] === "inflation" or entry["type"] === "interest"
+        end
+        amount      = entry["amount"]
+        start_month = entry["start_month"]
+        end_month   = entry["end_month"]
+        if start_month <= month and (end_month <= 0 or end_month >= month)
+          balances << amount
+        else
+          balances << 0
+        end
+      end
+      balances_w[month] = balances
+    end
+    totals_w[month] = total
+  end
+
+  # update account balances based on interest, income/expenses etc., no inflation
+  @entries_wo.each do |entry|
     # get values
     amount      = entry["amount"]
     start_month = entry["start_month"]
     end_month   = entry["end_month"]
 
     # update total for this month
-    if start_month <= month and (end_month == -1 or end_month >= month)
-      current_inflation_rate = amount if entry["type"] === "inflation"
+    if start_month <= month and (end_month <= 0 or end_month >= month)
+
+      if entry["type"] === "interest"
+        gain = get_reference_amount(@entries_wo, entry["reference"])
+        gain = gain * (amount/12.0) 
+        # update reference account for next interest calculation
+        deposit_to_reference(@entries_wo, entry["reference"], gain)
+      end
+
+      if entry["type"] === "income" or entry["type"] === "deposit" or entry["type"] === "payment"
+        # update reference account for interest calculation
+        deposit_to_reference(@entries_wo, entry["reference"], amount)
+      end
+
+      if entry["type"] === "expense" or entry["type"] === "withdrawl"
+        # update reference account for interest calculation
+        withdrawl_from_reference(@entries_wo, entry["reference"], amount)
+      end
     end
   end
-  current_inflation_factor = current_inflation_factor - (current_inflation_rate/12.0)
+
+  # update account balances based on interest, income/expenses etc., with inflation
+  if (options.display_opt & DISOPT_TOTAL_W__INFL) != DISOPT_NONE
+    current_inflation_factor = current_inflation_factor - (current_inflation_rate/12.0)
+    @entries_w.each do |entry|
+      # get values
+      amount      = entry["amount"]
+      start_month = entry["start_month"]
+      end_month   = entry["end_month"]
+
+      # update total for this month
+      if start_month <= month and (end_month <= 0 or end_month >= month)
+        if entry["type"] === "inflation"
+          current_inflation_rate = amount
+        end
+  # TODO finish inflation
+  # asset
+  # debt
+  # income
+  # ??
+        amount = amount * current_inflation_factor
+
+        if entry["type"] === "interest"
+          gain = get_reference_amount(@entries_w, entry["reference"])
+          gain = gain * (amount/12.0)
+          # update reference account for next interest calculation
+          deposit_to_reference(@entries_w, entry["reference"], gain)
+        end
+
+        if entry["type"] === "income" or entry["type"] === "deposit" or entry["type"] === "payment"
+          # update reference account for interest calculation
+          deposit_to_reference(@entries_w, entry["reference"], amount)
+        end
+
+        if entry["type"] === "expense" or entry["type"] === "withdrawl"
+          # update reference account for interest calculation
+          withdrawl_from_reference(@entries_w, entry["reference"], amount)
+        end
+      end
+    end
+  end
+
   month = month + 1
 end
 
@@ -341,11 +492,9 @@ start_year  = Date.today.year
 start_month = options.start_month if not options.start_month.nil?
 start_year  = options.start_year  if not options.start_year.nil?
 
-# display totals
+# display totals, totals with inflation, and account balances
 month = 0
 while month < options.months
-  total1 = totals_wo_inflation[month]
-  total2 = totals_w_inflation[month]
   month_str = "%4d " % [month] if (options.display_opt & DISOPT_MMYYYY) == DISOPT_NONE
   if (options.display_opt & DISOPT_MMYYYY) == DISOPT_MMYYYY
      total_months = (start_month-1) + month + (12*start_year)
@@ -353,12 +502,28 @@ while month < options.months
      this_year    = (total_months / 12)
      month_str = "%02d/%04d " % [this_month, this_year]
   end
-  total_wo = ""
-  total_w  = ""
-  total_wo = "\t%.2f" % [total1]       if (options.display_opt & DISOPT_WO_AND_THOUS) == DISOPT_TOTAL_WO_INFL
-  total_wo = "\t%d"   % [total1/1000]  if (options.display_opt & DISOPT_WO_AND_THOUS) == DISOPT_WO_AND_THOUS
-  total_w  = "\t%.2f" % [total2]       if (options.display_opt & DISOPT_W__AND_THOUS) == DISOPT_TOTAL_W__INFL
-  total_w  = "\t%d"   % [total2/1000]  if (options.display_opt & DISOPT_W__AND_THOUS) == DISOPT_W__AND_THOUS
-  puts "%s%s%s" % [month_str, total_wo, total_w]
+  total1 = totals_wo[month]
+  total2 = totals_w[month]
+  total_wo_str = ""
+  total_w_str  = ""
+  total_wo_str = "\t%.2f" % [total1]       if (options.display_opt & DISOPT_WO_AND_THOUS) == DISOPT_TOTAL_WO_INFL
+  total_wo_str = "\t%d"   % [total1/1000]  if (options.display_opt & DISOPT_WO_AND_THOUS) == DISOPT_WO_AND_THOUS
+  total_w_str  = "\t%.2f" % [total2]       if (options.display_opt & DISOPT_W__AND_THOUS) == DISOPT_TOTAL_W__INFL
+  total_w_str  = "\t%d"   % [total2/1000]  if (options.display_opt & DISOPT_W__AND_THOUS) == DISOPT_W__AND_THOUS
+  balances_str = ""
+  balances = balances_wo[month]
+  balances = balances_w[month] if (options.display_opt & DISOPT_TOTAL_W__INFL) !=  DISOPT_NONE
+  balances.each_with_index do |amount, index|
+    if amount == 0
+      balances_str << "\t%12s" % " "
+    elsif account_types[index] === "asset" or account_types[index] === "debt"
+      balances_str << "\t%12.2f" % [amount]        if (options.display_opt & DISOPT_IN_THOUSANDS) ===  DISOPT_NONE
+      balances_str << "\t%12d"   % [amount/1000]   if (options.display_opt & DISOPT_IN_THOUSANDS) !=   DISOPT_NONE
+    else
+      balances_str << "\t%12.2f" % [amount]
+    end
+  end
+  puts "%-16s%14s%14s%s" % [month_str, total_wo_str, total_w_str, balances_str]
   month = month + 1
 end
+

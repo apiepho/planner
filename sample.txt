@@ -102,7 +102,7 @@ amount              : -50.00
 # debts
 id                  : account3
 type                : debt
-reference           : 
+reference           :
 description         : some account that is a debt
 comment             : debt
 start_month         : 0
@@ -135,7 +135,7 @@ amount              : 100.00
 # income
 id                  : income1
 type                : income
-reference           : 
+reference           : account1
 description         : person1 pay
 comment             : income, next 10 years
 start_month         : 0
@@ -145,7 +145,7 @@ amount              : 1000.00
 #########################################################################################
 id                  : income2
 type                : income
-reference           : 
+reference           : account1
 description         : person1 pay
 comment             : income, next 15 years
 start_month         : 0
@@ -156,7 +156,7 @@ amount              : 2000.00
 # expenses
 id                  : expense1
 type                : expense
-reference           : 
+reference           : account1
 description         : utilities
 comment             : expense, never ends
 start_month         : 0
@@ -166,7 +166,7 @@ amount              : -100.00
 #########################################################################################
 id                  : expense2
 type                : expense
-reference           : 
+reference           : account1
 description         : credit card
 comment             : expense, average, never ends
 start_month         : 0
@@ -176,7 +176,7 @@ amount              : -1000.00
 #########################################################################################
 id                  : expense3
 type                : expense
-reference           : 
+reference           : account1
 description         : car loan
 comment             : expense, 2 years left
 start_month         : 0
