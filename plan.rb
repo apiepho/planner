@@ -184,6 +184,15 @@ def get_reference_amount(given_entries, reference)
 end
 
 #-----------------------------------------------------------------------
+def set_to_reference(given_entries, reference, amount)
+  given_entries.each_with_index do |entry, index|
+    if entry["id"] === reference
+      given_entries[index]["amount"] = amount
+    end
+  end
+end
+
+#-----------------------------------------------------------------------
 def deposit_to_reference(given_entries, reference, amount)
   given_entries.each_with_index do |entry, index|
     if entry["id"] === reference
@@ -444,7 +453,24 @@ while month <= options.months
 
   # update account balances based on interest, income/expenses etc., with inflation
   if (options.display_opt & DISOPT_TOTAL_W__INFL) != DISOPT_NONE
-    current_inflation_factor = current_inflation_factor - (current_inflation_rate/12.0)
+    current_inflation_factor = 1 + (current_inflation_rate/12.0)
+    
+    # apply inflation to assets/debts/income/expense
+    @entries_w.each do |entry|
+      # get values
+      amount      = entry["amount"]
+
+      # update total for this month
+      if entry["type"] === "inflation"
+        current_inflation_rate = amount
+      end
+      if entry["type"] === "debt" or entry["type"] === "withdrawl" or entry["type"] === "expense"
+        # inflation increases value
+        set_to_reference(@entries_w, entry["id"], (amount * current_inflation_factor))
+      end
+    end
+
+    # now update account balnaces
     @entries_w.each do |entry|
       # get values
       amount      = entry["amount"]
@@ -453,16 +479,6 @@ while month <= options.months
 
       # update total for this month
       if start_month <= month and (end_month <= 0 or end_month >= month)
-        if entry["type"] === "inflation"
-          current_inflation_rate = amount
-        end
-  # TODO finish inflation
-  # asset
-  # debt
-  # income
-  # ??
-        amount = amount * current_inflation_factor
-
         if entry["type"] === "interest"
           gain = get_reference_amount(@entries_w, entry["reference"])
           gain = gain * (amount/12.0)
